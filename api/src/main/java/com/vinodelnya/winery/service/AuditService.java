@@ -94,8 +94,21 @@ public class AuditService {
     public PageResponse<AuditLog> getAuditHistory(String tableName, Long recordId, 
                                                  String changedBy, LocalDateTime startDate, 
                                                  LocalDateTime endDate, Pageable pageable) {
-        Page<AuditLog> auditPage = auditLogRepository.findWithFilters(
-            tableName, recordId, changedBy, startDate, endDate, pageable);
+        Page<AuditLog> auditPage;
+        
+        // Check if any filters are provided
+        boolean hasFilters = (tableName != null && !tableName.trim().isEmpty()) ||
+                           (recordId != null) ||
+                           (changedBy != null && !changedBy.trim().isEmpty()) ||
+                           (startDate != null) ||
+                           (endDate != null);
+        
+        if (hasFilters) {
+            auditPage = auditLogRepository.findWithFilters(
+                tableName, recordId, changedBy, startDate, endDate, pageable);
+        } else {
+            auditPage = auditLogRepository.findAllOrderByChangedAtDesc(pageable);
+        }
         
         return new PageResponse<>(
             auditPage.getContent(),

@@ -24,12 +24,16 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
                                   @Param("endDate") LocalDateTime endDate, 
                                   Pageable pageable);
     
+    @Query("SELECT a FROM AuditLog a ORDER BY a.changedAt DESC")
+    Page<AuditLog> findAllOrderByChangedAtDesc(Pageable pageable);
+    
     @Query("SELECT a FROM AuditLog a WHERE " +
            "(:tableName IS NULL OR a.tableName = :tableName) AND " +
            "(:recordId IS NULL OR a.recordId = :recordId) AND " +
-           "(:changedBy IS NULL OR a.changedBy LIKE %:changedBy%) AND " +
+           "(:changedBy IS NULL OR :changedBy = '' OR a.changedBy LIKE CONCAT('%', :changedBy, '%')) AND " +
            "(:startDate IS NULL OR a.changedAt >= :startDate) AND " +
-           "(:endDate IS NULL OR a.changedAt <= :endDate)")
+           "(:endDate IS NULL OR a.changedAt <= :endDate) " +
+           "ORDER BY a.changedAt DESC")
     Page<AuditLog> findWithFilters(@Param("tableName") String tableName,
                                   @Param("recordId") Long recordId,
                                   @Param("changedBy") String changedBy,

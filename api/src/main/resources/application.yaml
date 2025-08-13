@@ -32,6 +32,10 @@ logging:
   level:
     com.vinodelnya: DEBUG
     org.springframework.security: DEBUG
+  file:
+    name: backend.log
+  pattern:
+    file: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %5p %t --- [%15.15t] [%40.40logger{39}] : %m%n"
 
 management:
   endpoints:

@@ -498,42 +498,131 @@ export class DashboardComponent implements OnInit {
     const fromDate = firstDayOfMonth.toISOString().split('T')[0];
     const toDate = lastDayOfMonth.toISOString().split('T')[0];
     
-    forkJoin({
-      persons: this.apiService.getPersons(0, 1),
-      events: this.apiService.getEvents(0, 1),
-      categories: this.apiService.getCategories(0, 1),
-      monthlyReport: this.apiService.getReportSummary(fromDate, toDate),
-      recentEntries: this.apiService.getEntries(0, 5, 'date,desc'),
-      recentAudit: this.apiService.getAuditHistory({ page: 0, size: 5, sortBy: 'timestamp', sortDir: 'desc' })
-    }).subscribe({
+    // Load each data source individually with better error handling
+    this.loadPersonsCount();
+    this.loadEventsCount();
+    this.loadCategoriesCount();
+    this.loadRecentEntries();
+    this.loadMonthlyFinancials(fromDate, toDate);
+  }
+
+  private loadPersonsCount() {
+    console.log('Loading persons count...');
+    this.apiService.getPersons(0, 1).subscribe({
       next: (data) => {
-        // Update quick stats with real data
-        this.quickStats[0].value = data.persons.totalElements;
+        console.log('Persons data received:', data);
+        this.quickStats[0].value = data.totalElements || 0;
         this.quickStats[0].loading = false;
-        
-        this.quickStats[1].value = data.events.totalElements;
+      },
+      error: (error) => {
+        console.error('Failed to load persons count:', error);
+        this.quickStats[0].value = 0;
+        this.quickStats[0].loading = false;
+      }
+    });
+  }
+
+  private loadEventsCount() {
+    this.apiService.getEvents(0, 1, 'visitDate,desc').subscribe({
+      next: (data) => {
+        this.quickStats[1].value = data.totalElements || 0;
         this.quickStats[1].loading = false;
-        
-        this.quickStats[2].value = Math.round(data.monthlyReport.totalAmountPaid || 0);
-        this.quickStats[2].loading = false;
-        
-        // Get pending tasks count from recent entries without invoices
-        const pendingTasksCount = data.recentEntries.content.filter((entry: any) => !entry.invoiceIssued).length;
-        this.quickStats[3].value = pendingTasksCount;
+      },
+      error: (error) => {
+        console.error('Failed to load events count:', error);
+        this.quickStats[1].value = 0;
+        this.quickStats[1].loading = false;
+      }
+    });
+  }
+
+  private loadCategoriesCount() {
+    this.apiService.getCategories(0, 1).subscribe({
+      next: (data) => {
+        // Update navigation badge with actual count
+        const categoriesNav = this.navigationItems.find(item => item.route === '/categories');
+        if (categoriesNav) {
+          categoriesNav.badge = (data.totalElements || 0).toString();
+        }
+      },
+      error: (error) => {
+        console.error('Failed to load categories count:', error);
+      }
+    });
+  }
+
+  private loadRecentEntries() {
+    // Use a simpler approach - just get current month entries
+    const currentMonth = new Date();
+    const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const lastDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+    
+    const fromDate = firstDayOfMonth.toISOString().split('T')[0];
+    const toDate = lastDayOfMonth.toISOString().split('T')[0];
+    
+    const filters = { dateFrom: fromDate, dateTo: toDate };
+    
+    this.apiService.getEntries(0, 10, 'date,desc', filters).subscribe({
+      next: (data) => {
+        // Count this month's entries as "recent activity"
+        const recentCount = data.content?.length || 0;
+        this.quickStats[3].value = recentCount;
         this.quickStats[3].loading = false;
-        
-        // Update recent activities with real audit data
-        this.updateRecentActivities(data.recentAudit.content, data.recentEntries.content);
-        
-        // Update chart with real financial data
-        this.updateChartData(data.monthlyReport);
-        
+
+        // Update entries navigation badge
+        const entriesNav = this.navigationItems.find(item => item.route === '/entries');
+        if (entriesNav) {
+          entriesNav.badge = (data.totalElements || 0).toString();
+        }
+
+        // Update recent activities with entry data
+        this.updateRecentActivities([], data.content || []);
+      },
+      error: (error) => {
+        console.error('Failed to load recent entries:', error);
+        this.quickStats[3].value = 0;
+        this.quickStats[3].loading = false;
+      }
+    });
+  }
+
+  private loadMonthlyFinancials(fromDate: string, toDate: string) {
+    console.log('Loading monthly financials for date range:', fromDate, 'to', toDate);
+    // Try to get monthly report, but use simpler approach if that fails
+    this.apiService.getReportSummary(fromDate, toDate).subscribe({
+      next: (report) => {
+        console.log('Monthly report data received:', report);
+        this.quickStats[2].value = Math.round(report.totalAmountPaid || 0);
+        this.quickStats[2].loading = false;
+        this.updateChartData(report);
         this.chartLoading = false;
       },
       error: (error) => {
-        console.error('Failed to load dashboard data:', error);
-        // Keep loading states false to show default values
-        this.quickStats.forEach(stat => stat.loading = false);
+        console.error('Failed to load monthly report, trying entries approach:', error);
+        // Fallback: calculate from entries
+        this.loadEntriesForFinancials(fromDate, toDate);
+      }
+    });
+  }
+
+  private loadEntriesForFinancials(fromDate: string, toDate: string) {
+    const filters = { dateFrom: fromDate, dateTo: toDate };
+    this.apiService.getEntries(0, 100, 'date,desc', filters).subscribe({
+      next: (data) => {
+        const totalPaid = data.content?.reduce((sum: number, entry: any) => 
+          sum + (entry.amountPaid || 0), 0) || 0;
+        
+        this.quickStats[2].value = Math.round(totalPaid);
+        this.quickStats[2].loading = false;
+        
+        // Simple chart data from entries
+        this.updateSimpleChartData(data.content || []);
+        this.chartLoading = false;
+      },
+      error: (error) => {
+        console.error('Failed to load entries for financials:', error);
+        this.quickStats[2].value = 0;
+        this.quickStats[2].loading = false;
         this.chartLoading = false;
       }
     });
@@ -555,13 +644,13 @@ export class DashboardComponent implements OnInit {
     
     // Add recent audit activities
     auditData.slice(0, 2).forEach(audit => {
-      const timeAgo = this.getTimeAgo(audit.timestamp);
+      const timeAgo = this.getTimeAgo(audit.changedAt);
       let activityText = '';
       let icon = 'pi pi-info-circle';
       let color = '#3B82F6';
       
-      switch (audit.operation) {
-        case 'CREATE':
+      switch (audit.action) {
+        case 'INSERT':
           activityText = `New ${audit.tableName.toLowerCase()} created`;
           icon = 'pi pi-plus-circle';
           color = '#10B981';
@@ -624,6 +713,8 @@ export class DashboardComponent implements OnInit {
         }
       ]
     };
+
+    console.log('Chart data updated:', this.chartData);
   }
   
   private getTimeAgo(dateString: string): string {
@@ -638,6 +729,19 @@ export class DashboardComponent implements OnInit {
     } else {
       const diffInDays = Math.floor(diffInHours / 24);
       return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    }
+  }
+
+
+  private updateSimpleChartData(entries: any[]) {
+    // Simple chart from entries data
+    if (entries && entries.length > 0 && this.chartData) {
+      const totalPaid = entries.reduce((sum, entry) => sum + (entry.amountPaid || 0), 0);
+      const totalDue = entries.reduce((sum, entry) => sum + (entry.amountDue || 0), 0);
+      
+      this.chartData.labels = ['Current Month'];
+      this.chartData.datasets[0].data = [totalPaid];
+      this.chartData.datasets[1].data = [totalDue];
     }
   }
 

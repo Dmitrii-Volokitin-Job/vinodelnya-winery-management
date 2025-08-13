@@ -23,6 +23,9 @@ interface LogEntry {
   logger: string;
   message: string;
   thread: string;
+  trace?: string;
+  stackTrace?: string;
+  hasStackTrace?: boolean;
 }
 
 interface LogStats {
@@ -155,6 +158,7 @@ interface LogStats {
             <th style="width: 120px;">{{ i18n.translate("LOGS.THREAD") }}</th>
             <th style="width: 250px;">{{ i18n.translate("LOGS.LOGGER") }}</th>
             <th>{{ i18n.translate("LOGS.MESSAGE") }}</th>
+            <th style="width: 50px;">ST</th>
             <th style="width: 100px;">
               {{ i18n.translate("COMMON.ACTIONS") }}
             </th>
@@ -174,6 +178,14 @@ interface LogStats {
             <td>{{ log.thread }}</td>
             <td class="logger-cell">{{ log.logger }}</td>
             <td class="message-cell">{{ log.message }}</td>
+            <td class="text-center">
+              <i 
+                *ngIf="log.hasStackTrace" 
+                class="pi pi-exclamation-triangle" 
+                style="color: #f56565;"
+                pTooltip="Has Stack Trace"
+              ></i>
+            </td>
             <td>
               <p-button
                 icon="pi pi-eye"
@@ -190,7 +202,7 @@ interface LogStats {
 
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td colspan="6" class="text-center">
+            <td colspan="7" class="text-center">
               {{ i18n.translate("COMMON.NO_DATA") }}
             </td>
           </tr>
@@ -228,6 +240,10 @@ interface LogStats {
                 <label>{{ i18n.translate("LOGS.LOGGER") }}:</label>
                 <span>{{ selectedLog.logger }}</span>
               </div>
+              <div class="detail-item" *ngIf="selectedLog.trace">
+                <label>Trace:</label>
+                <span>{{ selectedLog.trace }}</span>
+              </div>
             </div>
           </div>
 
@@ -235,6 +251,16 @@ interface LogStats {
             <h4>{{ i18n.translate("LOGS.MESSAGE") }}</h4>
             <div class="message-content">
               <pre>{{ selectedLog.message }}</pre>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h4>Stack Trace</h4>
+            <div class="stack-trace-content" *ngIf="selectedLog?.hasStackTrace && selectedLog.stackTrace && selectedLog.stackTrace.trim().length > 0">
+              <pre>{{ selectedLog.stackTrace }}</pre>
+            </div>
+            <div class="no-stack-trace" *ngIf="!selectedLog?.hasStackTrace || !selectedLog.stackTrace || selectedLog.stackTrace.trim().length === 0">
+              <p class="text-muted">No stack trace available for this log entry.</p>
             </div>
           </div>
         </div>
@@ -411,6 +437,38 @@ interface LogStats {
         white-space: pre-wrap;
         font-family: "Consolas", "Monaco", "Courier New", monospace;
         font-size: 0.9rem;
+      }
+
+      .stack-trace-content {
+        background: #2d3748;
+        color: #e2e8f0;
+        border: 1px solid #4a5568;
+        border-radius: 4px;
+        padding: 1rem;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .stack-trace-content pre {
+        margin: 0;
+        white-space: pre-wrap;
+        font-family: "Consolas", "Monaco", "Courier New", monospace;
+        font-size: 0.85rem;
+        color: #e2e8f0;
+      }
+
+      .no-stack-trace {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 1rem;
+        text-align: center;
+      }
+
+      .no-stack-trace .text-muted {
+        margin: 0;
+        color: #6c757d;
+        font-style: italic;
       }
 
       .stats-container {
