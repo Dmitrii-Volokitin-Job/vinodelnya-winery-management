@@ -25,6 +25,7 @@ import { MessageService, ConfirmationService } from "primeng/api";
 import { Person, PageResponse } from "../models/entry.model";
 import { ApiService } from "../services/api.service";
 import { AuthService } from "../services/auth.service";
+import { HelpModalComponent } from "./help-modal.component";
 
 @Component({
   selector: "app-persons",
@@ -45,6 +46,7 @@ import { AuthService } from "../services/auth.service";
     TagModule,
     CalendarModule,
     TooltipModule,
+    HelpModalComponent,
   ],
   providers: [MessageService, ConfirmationService],
   template: `

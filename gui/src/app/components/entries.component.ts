@@ -19,11 +19,14 @@ import { DropdownModule } from "primeng/dropdown";
 import { MultiSelectModule } from "primeng/multiselect";
 import { ToastModule } from "primeng/toast";
 import { ConfirmDialogModule } from "primeng/confirmdialog";
+import { TooltipModule } from "primeng/tooltip";
 import { MessageService, ConfirmationService } from "primeng/api";
 
 import { Entry, Person, Category, PageResponse } from "../models/entry.model";
 import { ApiService } from "../services/api.service";
 import { AuthService } from "../services/auth.service";
+import { HelpModalComponent } from "./help-modal.component";
+import { AuditLogModalComponent } from "./audit-log-modal.component";
 
 @Component({
   selector: "app-entries",
@@ -43,13 +46,26 @@ import { AuthService } from "../services/auth.service";
     MultiSelectModule,
     ToastModule,
     ConfirmDialogModule,
+    TooltipModule,
+    HelpModalComponent,
+    AuditLogModalComponent,
   ],
   providers: [MessageService, ConfirmationService],
   template: `
     <div class="main-container">
       <div class="card">
         <div class="header">
-          <h2>Entries Management</h2>
+          <div class="title-section">
+            <h2>Entries Management</h2>
+            <p-button
+              icon="pi pi-question-circle"
+              [text]="true"
+              pTooltip="Show help information"
+              tooltipPosition="bottom"
+              (onClick)="showHelp()"
+              styleClass="help-button"
+            ></p-button>
+          </div>
           <p-button
             *ngIf="isAdmin"
             label="Add Entry"
@@ -183,8 +199,17 @@ import { AuthService } from "../services/auth.service";
               </td>
               <td *ngIf="isAdmin">
                 <p-button
+                  icon="pi pi-history"
+                  [text]="true"
+                  pTooltip="View audit log"
+                  (onClick)="showAuditLog(entry)"
+                  styleClass="audit-button"
+                >
+                </p-button>
+                <p-button
                   icon="pi pi-pencil"
                   [text]="true"
+                  pTooltip="Edit entry"
                   (onClick)="editEntry(entry)"
                 >
                 </p-button>
@@ -192,6 +217,7 @@ import { AuthService } from "../services/auth.service";
                   icon="pi pi-trash"
                   severity="danger"
                   [text]="true"
+                  pTooltip="Delete entry"
                   (onClick)="deleteEntry(entry)"
                 >
                 </p-button>
@@ -370,6 +396,21 @@ import { AuthService } from "../services/auth.service";
       </form>
     </p-dialog>
 
+    <!-- Help Modal -->
+    <app-help-modal
+      [(visible)]="showHelpModal"
+      [componentTitle]="'Entries Management'"
+      [componentDescription]="'Manage work entries with detailed tracking of hours, payments, and assignments'"
+      [helpSections]="helpSections"
+    ></app-help-modal>
+
+    <!-- Audit Log Modal -->
+    <app-audit-log-modal
+      [(visible)]="showAuditModal"
+      [entityType]="'Entry'"
+      [entityId]="selectedAuditEntryId"
+    ></app-audit-log-modal>
+
     <p-toast></p-toast>
     <p-confirmDialog></p-confirmDialog>
   `,
@@ -439,6 +480,32 @@ import { AuthService } from "../services/auth.service";
       .w-full {
         width: 100%;
       }
+
+      .title-section {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .title-section h2 {
+        margin: 0;
+      }
+
+      :global(.help-button) {
+        color: #6b7280 !important;
+      }
+
+      :global(.help-button:hover) {
+        color: #374151 !important;
+      }
+
+      :global(.audit-button) {
+        color: #8b5cf6 !important;
+      }
+
+      :global(.audit-button:hover) {
+        color: #7c3aed !important;
+      }
     `,
   ],
 })
@@ -463,6 +530,80 @@ export class EntriesComponent implements OnInit {
 
   entryForm: FormGroup;
   selectedEntry: Entry | null = null;
+  
+  // Help modal properties
+  showHelpModal = false;
+  helpSections = [
+    {
+      title: 'Overview',
+      content: `
+        <p>The Entries Management system allows you to track work activities, hours, and payments for your winery operations.</p>
+        <p><strong>Key Features:</strong></p>
+        <ul>
+          <li>Create and manage work entries</li>
+          <li>Track hours, payments, and work descriptions</li>
+          <li>Filter entries by date, person, and category</li>
+          <li>View audit history for each entry</li>
+          <li>Calculate totals and summaries</li>
+        </ul>
+      `,
+      icon: 'pi pi-info-circle'
+    },
+    {
+      title: 'Adding New Entries',
+      content: `
+        <p>To add a new work entry:</p>
+        <ul>
+          <li>Click the <strong>"Add Entry"</strong> button (Admin only)</li>
+          <li>Fill in the required fields: Date, Description, Person, Category</li>
+          <li>Optionally add work hours and payment information</li>
+          <li>Click <strong>"Save"</strong> to create the entry</li>
+        </ul>
+        <p><strong>Note:</strong> All monetary values are in EUR.</p>
+      `,
+      icon: 'pi pi-plus'
+    },
+    {
+      title: 'Filtering & Search',
+      content: `
+        <p>Use the filter panel to narrow down entries:</p>
+        <ul>
+          <li><strong>Date Range:</strong> Select from/to dates to filter by period</li>
+          <li><strong>Persons:</strong> Filter by specific people (multi-select)</li>
+          <li><strong>Categories:</strong> Filter by work categories (multi-select)</li>
+          <li>Click <strong>"Apply Filters"</strong> to update the table</li>
+          <li>Use <strong>"Clear Filters"</strong> to reset all filters</li>
+        </ul>
+      `,
+      icon: 'pi pi-filter'
+    },
+    {
+      title: 'Actions & Audit Log',
+      content: `
+        <p><strong>Available actions for each entry (Admin only):</strong></p>
+        <ul>
+          <li><strong>History:</strong> View detailed audit log of all changes</li>
+          <li><strong>Edit:</strong> Modify entry details</li>
+          <li><strong>Delete:</strong> Remove entry (with confirmation)</li>
+        </ul>
+        <p><strong>Audit Log:</strong> Track who made changes, when, and what was modified. Essential for compliance and accountability.</p>
+      `,
+      icon: 'pi pi-cog'
+    },
+    {
+      title: 'Understanding Totals',
+      content: `
+        <p><strong>Page Total:</strong> Sum of values for currently displayed entries</p>
+        <p><strong>Grand Total:</strong> Sum of all entries matching current filters</p>
+        <p>Totals include work hours, amounts paid, and amounts due. Use these to track project costs and labor allocation.</p>
+      `,
+      icon: 'pi pi-calculator'
+    }
+  ];
+
+  // Audit modal properties
+  showAuditModal = false;
+  selectedAuditEntryId: number | null = null;
 
   constructor(
     private apiService: ApiService,
@@ -667,5 +808,16 @@ export class EntriesComponent implements OnInit {
     }
 
     return apiFilters;
+  }
+
+  // Help modal methods
+  showHelp() {
+    this.showHelpModal = true;
+  }
+
+  // Audit log modal methods
+  showAuditLog(entry: Entry) {
+    this.selectedAuditEntryId = entry.id!;
+    this.showAuditModal = true;
   }
 }
