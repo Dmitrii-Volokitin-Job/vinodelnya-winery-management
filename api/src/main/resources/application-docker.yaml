@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/vinodelnya
+    username: admin
+    password: admin
+
+logging:
+  level:
+    com.vinodelnya: INFO
+    org.springframework.security: WARN

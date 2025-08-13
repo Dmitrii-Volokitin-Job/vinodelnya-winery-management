@@ -1,0 +1,30 @@
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backend (Spring Boot/Java/Gradle)
+api/build/
+api/.gradle/
+api/backend.log
+*.log
+*.jar
+
+# Frontend (Angular/Node)
+gui/node_modules/
+gui/dist/
+gui/.angular/
+gui/npm-debug.log*
+gui/yarn-debug.log*
+gui/yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: vinodelnja-postgres
+    environment:
+      POSTGRES_DB: vinodelnya
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d vinodelnya"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  backend:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: vinodelnja-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/vinodelnya
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/api/v1/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ui:
+    build:
+      context: ./gui
+      dockerfile: Dockerfile
+    container_name: vinodelnja-ui
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+  daily-restart:
+    image: alpine:latest
+    container_name: vinodelnja-cron
+    command: sh -c "echo '0 0 * * * /usr/local/bin/docker-compose -f /docker-compose.yml restart backend ui' | crontab - && crond -f"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker-compose.yml:/docker-compose.yml:ro
+    restart: unless-stopped
+
+volumes:
+  pg_data:

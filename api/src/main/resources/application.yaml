@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: vinodelnya
+  datasource:
+    url: jdbc:postgresql://localhost:5432/vinodelnya
+    username: admin
+    password: admin
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    clean-disabled: false
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8081
+  servlet:
+    context-path: /api/v1
+
+logging:
+  level:
+    com.vinodelnya: DEBUG
+    org.springframework.security: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+jwt:
+  secret: ${JWT_SECRET:vinodelnya-super-secret-key-for-jwt-tokens-2025}
+  expiration: 86400000
+  refresh-expiration: 604800000
+
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:4200,http://localhost:8080}
+  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
